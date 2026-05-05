@@ -1,0 +1,161 @@
+comp = {'0': "1110101010", '1':'1110111111', '-1':'1110111010','D':'1110001100','A':'1110110000','!D':'1110001101','!A':'1110110001',
+        '-D':'1110001111','-A':'1110110011','D+1': '1110011111','A+1':'1110110111','D-1':'1110001110','A-1':'1110110010','D+A':'1110000010',
+        'D-A':'1110010011','A-D':'1110000111','D&A':'1110000000','D|A':'1110010101','M':'1111110000','!M':'1111110001','M+1':'1111110111',
+        'M-1':'1111110010','D+M':'1111000010','D-M':'1111010011','M-D':'1111000111','D&M':'1111000000','D|M':'1111010101'}
+
+dest = {'null':'000',"M": "001","D": "010","MD": "011","A": "100","AM": "101","AD": "110","AMD": "111"}
+
+jump= {
+    'null': "000",   # no jump
+    "JGT": "001",
+    "JEQ": "010",
+    "JGE": "011",
+    "JLT": "100",
+    "JNE": "101",
+    "JLE": "110",
+    "JMP": "111"
+}
+
+symbol_table = {
+    "SP": 0,
+    "LCL": 1,
+    "ARG": 2,
+    "THIS": 3,
+    "THAT": 4,
+
+    "R0": 0,
+    "R1": 1,
+    "R2": 2,
+    "R3": 3,
+    "R4": 4,
+    "R5": 5,
+    "R6": 6,
+    "R7": 7,
+    "R8": 8,
+    "R9": 9,
+    "R10": 10,
+    "R11": 11,
+    "R12": 12,
+    "R13": 13,
+    "R14": 14,
+    "R15": 15,
+
+    "SCREEN": 16384,
+    "KBD": 24576
+}
+
+looping_list = {}
+
+
+def loop_lines(lines):
+
+    cnt = 0
+
+    for l in lines:
+
+        if l.startswith("("):
+            name = l[1:-1]
+            looping_list[name] = cnt
+        else:
+            cnt += 1
+
+
+def get_address(address, address_dict, obj):
+    
+    if address_dict.get(obj, 'None') != 'None':
+        return address, address_dict[obj]
+    
+    elif looping_list.get(obj, 'None') != 'None':
+        return address, looping_list[obj]
+    else:
+        address_dict[obj] = address
+        return address+1, address
+    
+
+
+def convert_attherate(addr, obj):
+
+    if obj.isdigit():
+        return format(int(obj), "016b")
+
+    if obj in symbol_table:
+        return format(symbol_table[obj], "016b")
+
+    if obj in looping_list:
+        return format(looping_list[obj], "016b")
+
+    symbol_table[obj] = addr
+    return format(addr, "016b")
+
+
+
+def assembly_2_binary(lines):
+
+    binary_lines = []
+    var = 16
+
+    for l in lines:
+
+        if l.startswith("("):
+            continue
+
+        if l.startswith("@"):
+            val = l[1:]
+
+            if not val.isdigit() and val not in symbol_table and val not in looping_list:
+                symbol_table[val] = var
+                var += 1
+
+            binary_lines.append(convert_attherate(var, val) + "\n")
+
+        elif "=" in l:
+            d, c = l.split("=")
+            binary_lines.append(comp[c] + dest[d] + jump["null"] + "\n")
+
+        elif ";" in l:
+            c, j = l.split(";")
+            binary_lines.append(comp[c] + dest["null"] + jump[j] + "\n")
+
+    return binary_lines
+        
+
+def refine_lines(all_lines):
+    res = []
+
+    for l in all_lines:
+        l = l.strip()
+
+        if l == "" or l.startswith("//"):
+            continue
+
+        if "//" in l:
+            l = l.split("//")[0].strip()
+
+        res.append(l)
+
+    return res
+        
+
+
+def extractlines(filename):
+    with open(filename,'r') as file_pointer:
+        lines = file_pointer.readlines()
+    return lines
+
+
+def main():
+    file_path = "/Users/ganeshdasari/Downloads/python_files/"
+    #file_path = ""
+    filename = file_path+"Max.asm"
+    all_lines = extractlines(filename)
+    refined_lines = refine_lines(all_lines)
+    print(refined_lines)
+    loop_lines(refined_lines)
+    print(looping_list)
+    binary_lines = assembly_2_binary(refined_lines)
+    with open("Max.hack",'w') as file_pointer:
+        file_pointer.writelines(binary_lines)
+
+
+if __name__ == "__main__":
+    main()
